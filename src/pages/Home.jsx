@@ -54,8 +54,8 @@ export default function Home() {
 
   useEffect(() => {
     supabase
-      .from('team_standings_view')
-      .select('*')
+      .from('team_standings')
+      .select('*, teams(name, logo_url)')
       .order('rank')
       .then(({ data }) => {
         if (data) setStandings(data)
@@ -182,22 +182,26 @@ export default function Home() {
             {standingsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
           {standingsOpen && (
-            <div style={{ padding: '0 10px 12px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <div style={{ padding: '0 10px 12px', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr style={{ borderBottom: '1.5px solid var(--color-line)', color: 'var(--color-ink-muted)', fontWeight: 700 }}>
-                    <th style={{ padding: '6px 4px', textAlign: 'center', width: 28 }}>#</th>
-                    <th style={{ padding: '6px 4px', textAlign: 'left' }}>팀</th>
-                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>경기</th>
-                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>승</th>
-                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>패</th>
-                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>무</th>
-                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>승률</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center', width: 24 }}>#</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'left' }}>팀</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center' }}>경기</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center' }}>승</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center' }}>패</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center' }}>무</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center' }}>승률</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center' }}>차</th>
+                    <th style={{ padding: '6px 3px', textAlign: 'center' }}>연속</th>
                   </tr>
                 </thead>
                 <tbody>
                   {standings.map((team) => {
                     const isMyTeam = profile?.favorite_team_id === team.team_id
+                    const teamName = team.teams?.name || team.team_id
+                    const logoUrl = team.teams?.logo_url
                     return (
                       <tr
                         key={team.team_id}
@@ -207,21 +211,27 @@ export default function Home() {
                           fontWeight: isMyTeam ? 800 : 600,
                         }}
                       >
-                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: 800, color: team.rank <= 3 ? 'var(--color-stitch-red)' : 'var(--color-ink-soft)' }}>
+                        <td className="num" style={{ padding: '7px 3px', textAlign: 'center', fontWeight: 800, color: team.rank <= 3 ? 'var(--color-stitch-red)' : 'var(--color-ink-soft)' }}>
                           {team.rank}
                         </td>
-                        <td style={{ padding: '8px 4px' }}>
+                        <td style={{ padding: '7px 3px' }}>
                           <div className="flex items-center gap-1.5">
-                            <TeamLogo team={{ id: team.team_id, logo_url: team.logo_url, name: team.team_name }} size={18} />
-                            <span style={{ fontSize: 12, fontWeight: isMyTeam ? 800 : 700 }}>{team.team_name}</span>
+                            <TeamLogo team={{ id: team.team_id, logo_url: logoUrl, name: teamName }} size={18} />
+                            <span style={{ fontSize: 11, fontWeight: isMyTeam ? 800 : 700 }}>{teamName}</span>
                           </div>
                         </td>
-                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.games_played}</td>
-                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.wins}</td>
-                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.losses}</td>
-                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.draws}</td>
-                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: 800 }}>
+                        <td className="num" style={{ padding: '7px 3px', textAlign: 'center' }}>{team.games_played}</td>
+                        <td className="num" style={{ padding: '7px 3px', textAlign: 'center' }}>{team.wins}</td>
+                        <td className="num" style={{ padding: '7px 3px', textAlign: 'center' }}>{team.losses}</td>
+                        <td className="num" style={{ padding: '7px 3px', textAlign: 'center' }}>{team.draws}</td>
+                        <td className="num" style={{ padding: '7px 3px', textAlign: 'center', fontWeight: 800 }}>
                           {Number(team.win_rate).toFixed(3).slice(1)}
+                        </td>
+                        <td className="num" style={{ padding: '7px 3px', textAlign: 'center', color: 'var(--color-ink-muted)' }}>
+                          {team.games_behind}
+                        </td>
+                        <td style={{ padding: '7px 3px', textAlign: 'center', fontSize: 10, color: team.streak?.includes('승') ? 'var(--color-grass-mid)' : 'var(--color-stitch-red)' }}>
+                          {team.streak}
                         </td>
                       </tr>
                     )

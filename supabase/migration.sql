@@ -763,44 +763,37 @@ CREATE TRIGGER on_team_change
   FOR EACH ROW EXECUTE FUNCTION check_team_change_limit();
 
 -- =============================================
--- 구단 순위표 (SQL 뷰)
+-- 구단 순위표 (KBO 공식 순위 API 기반)
 -- =============================================
 
-CREATE OR REPLACE VIEW team_standings_view AS
-WITH results AS (
-  SELECT home_team_id AS team_id,
-    CASE WHEN home_score > away_score THEN 1 ELSE 0 END AS win,
-    CASE WHEN home_score < away_score THEN 1 ELSE 0 END AS loss,
-    CASE WHEN home_score = away_score THEN 1 ELSE 0 END AS draw
-  FROM games
-  WHERE status = 'finished'
-    AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
-  UNION ALL
-  SELECT away_team_id AS team_id,
-    CASE WHEN away_score > home_score THEN 1 ELSE 0 END AS win,
-    CASE WHEN away_score < home_score THEN 1 ELSE 0 END AS loss,
-    CASE WHEN home_score = away_score THEN 1 ELSE 0 END AS draw
-  FROM games
-  WHERE status = 'finished'
-    AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
-)
-SELECT
-  t.id AS team_id,
-  t.name AS team_name,
-  t.logo_url,
-  COALESCE(SUM(r.win), 0)::int AS wins,
-  COALESCE(SUM(r.loss), 0)::int AS losses,
-  COALESCE(SUM(r.draw), 0)::int AS draws,
-  COALESCE(SUM(r.win) + SUM(r.loss) + SUM(r.draw), 0)::int AS games_played,
-  CASE WHEN COALESCE(SUM(r.win) + SUM(r.loss), 0) > 0
-    THEN ROUND(SUM(r.win)::numeric / (SUM(r.win) + SUM(r.loss))::numeric, 3)
-    ELSE 0
-  END AS win_rate,
-  RANK() OVER (ORDER BY
-    CASE WHEN COALESCE(SUM(r.win) + SUM(r.loss), 0) > 0
-      THEN SUM(r.win)::numeric / (SUM(r.win) + SUM(r.loss))::numeric
-      ELSE 0 END DESC
-  ) AS rank
-FROM teams t
-LEFT JOIN results r ON r.team_id = t.id
-GROUP BY t.id, t.name, t.logo_url;
+CREATE TABLE team_standings (
+  team_id TEXT PRIMARY KEY REFERENCES teams(id),
+  rank INT NOT NULL DEFAULT 0,
+  games_played INT NOT NULL DEFAULT 0,
+  wins INT NOT NULL DEFAULT 0,
+  losses INT NOT NULL DEFAULT 0,
+  draws INT NOT NULL DEFAULT 0,
+  win_rate NUMERIC(4,3) NOT NULL DEFAULT 0.000,
+  games_behind TEXT DEFAULT '-',
+  streak TEXT DEFAULT '',
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE team_standings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "team_standings_read" ON team_standings FOR SELECT USING (true);
+
+-- pg_cron: KBO 순위 자동 수집 (KST 10:00~23:00 매 2시간, UTC 01-14)
+SELECT cron.schedule(
+  'fetch-kbo-standings',
+  '0 1,3,5,7,9,11,13 * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://qreaxunrhkdqwcgqmxcr.supabase.co/functions/v1/fetch-kbo-standings',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)
+    ),
+    body := '{}'::jsonb
+  ) AS request_id;
+  $$
+);

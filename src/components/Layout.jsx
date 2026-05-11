@@ -33,18 +33,8 @@ export default function Layout({ children }) {
       <header className="scoreboard-header" style={{ padding: '14px 16px 12px' }}>
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 no-underline">
-            <div
-              className="flex items-center justify-center font-mono"
-              style={{
-                width: 32, height: 32, borderRadius: 6,
-                background: 'var(--color-stitch-red)', color: 'white',
-                fontWeight: 800, fontSize: 13, letterSpacing: '0.05em',
-                boxShadow: 'inset 0 0 0 1.5px rgba(255,255,255,0.4)',
-              }}
-            >
-              YM
-            </div>
-            <span className="font-mono text-lg font-extrabold text-white tracking-tight">야메</span>
+            <img src="/favicon.svg" alt="메이트볼" style={{ width: 30, height: 30 }} />
+            <span className="font-mono text-lg font-extrabold text-white tracking-tight">메이트볼</span>
           </Link>
 
           {user ? (

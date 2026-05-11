@@ -55,7 +55,10 @@ export const useAuthStore = create((set, get) => ({
   signInWithKakao: async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo: window.location.origin + '/' },
+      options: {
+        redirectTo: window.location.origin + '/',
+        scopes: 'profile_nickname profile_image',
+      },
     })
     if (error) throw error
   },

@@ -120,11 +120,11 @@ export default function MyPage() {
             {profile?.nickname?.charAt(0)}
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{profile?.nickname}</div>
+            <div style={{ fontFamily: 'BagelFat, sans-serif', fontSize: 18 }}>{profile?.nickname}</div>
             {profile?.teams && (
               <div className="flex items-center gap-1" style={{ fontSize: 12, marginTop: 2 }}>
                 <TeamLogo team={profile.teams} size={14} />
-                <span style={{ fontWeight: 700 }}>{profile.teams.name}</span>
+                <span style={{ fontFamily: 'BagelFat, sans-serif', fontSize: 12 }}>{profile.teams.name}</span>
               </div>
             )}
             {profile?.rating_avg > 0 && (

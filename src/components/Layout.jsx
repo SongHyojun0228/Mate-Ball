@@ -50,7 +50,7 @@ export default function Layout({ children }) {
                   }}
                 >
                   <TeamLogo team={profile.teams} size={22} />
-                  <span className="text-xs font-bold text-white">{profile.teams.name}</span>
+                  <span style={{ fontFamily: 'BagelFat, sans-serif', fontSize: 12, color: 'white' }}>{profile.teams.name}</span>
                 </Link>
               )}
               <button

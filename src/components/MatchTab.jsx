@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Users, Plus, X, Check, XCircle, MessageCircle, Star } from 'lucide-react'
+import { Users, Plus, X, Check, XCircle, MessageCircle, Star, AlertTriangle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import MatchChat from './MatchChat'
@@ -32,7 +32,7 @@ export default function MatchTab({ game, isMyGame }) {
     setLoading(true)
     const { data } = await supabase
       .from('match_posts')
-      .select('*, profiles(nickname, favorite_team_id, rating_avg), match_requests(*, profiles(nickname))')
+      .select('*, profiles(nickname, favorite_team_id, rating_avg, no_show_count), match_requests(*, profiles(nickname, no_show_count))')
       .eq('game_id', game.id)
       .order('created_at', { ascending: false })
     if (data) setPosts(data)
@@ -43,11 +43,25 @@ export default function MatchTab({ game, isMyGame }) {
     if (!user) return
     const { data } = await supabase
       .from('match_requests')
-      .select('*, match_posts!inner(game_id, profiles(nickname))')
+      .select('*, match_posts!inner(game_id, user_id, profiles(nickname))')
       .eq('requester_id', user.id)
       .eq('status', 'accepted')
       .eq('match_posts.game_id', game.id)
     if (data) setMyAcceptedRequests(data)
+  }
+
+  const handleNoShowReport = async (requestId) => {
+    if (!confirm('상대방이 나타나지 않았나요? 노쇼 신고를 하시겠습니까?')) return
+    const { error } = await supabase
+      .from('match_requests')
+      .update({ no_show_reported_by: user.id })
+      .eq('id', requestId)
+    if (error) {
+      alert('신고 처리 중 오류가 발생했어요.')
+    } else {
+      await loadPosts()
+      await loadMyAcceptedRequests()
+    }
   }
 
   const handleSubmitPost = async (e) => {
@@ -125,19 +139,41 @@ export default function MatchTab({ game, isMyGame }) {
               {req.match_posts?.profiles?.nickname}님과 매칭되었어요
             </p>
           </div>
-          <button
-            onClick={() => setActiveChatRequestId(req.id)}
-            className="flex items-center gap-1"
-            style={{
-              background: 'var(--color-grass-mid)', color: 'white',
-              fontSize: 11, fontWeight: 800,
-              padding: '6px 10px', borderRadius: 8,
-              border: 'none', cursor: 'pointer',
-            }}
-          >
-            <MessageCircle size={13} />
-            대화하기
-          </button>
+          <div className="flex items-center gap-1.5">
+            {game.status === 'finished' && !req.no_show_reported_by && (
+              <button
+                onClick={() => handleNoShowReport(req.id)}
+                className="flex items-center gap-1"
+                style={{
+                  background: 'rgba(200,32,43,0.08)', color: 'var(--color-stitch-red)',
+                  fontSize: 10, fontWeight: 800,
+                  padding: '6px 8px', borderRadius: 8,
+                  border: 'none', cursor: 'pointer',
+                }}
+              >
+                <AlertTriangle size={11} />
+                안 나왔어요
+              </button>
+            )}
+            {game.status === 'finished' && req.no_show_reported_by && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-ink-muted)' }}>
+                신고완료
+              </span>
+            )}
+            <button
+              onClick={() => setActiveChatRequestId(req.id)}
+              className="flex items-center gap-1"
+              style={{
+                background: 'var(--color-grass-mid)', color: 'white',
+                fontSize: 11, fontWeight: 800,
+                padding: '6px 10px', borderRadius: 8,
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              <MessageCircle size={13} />
+              대화하기
+            </button>
+          </div>
         </div>
       ))}
 
@@ -269,6 +305,12 @@ export default function MatchTab({ game, isMyGame }) {
                       </span>
                     </span>
                   )}
+                  {post.profiles?.no_show_count > 0 && (
+                    <span className="flex items-center gap-0.5" style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-stitch-red)' }}>
+                      <AlertTriangle size={10} />
+                      노쇼 {post.profiles.no_show_count}회
+                    </span>
+                  )}
                 </div>
                 <span className={`badge ${post.status === 'open' ? 'badge-scheduled' : 'badge-final'}`}>
                   {post.status === 'open' ? '모집중' : post.status === 'matched' ? '매칭완료' : '마감'}
@@ -357,19 +399,41 @@ export default function MatchTab({ game, isMyGame }) {
                       {post.profiles?.nickname}님과 직관 가요
                     </p>
                   </div>
-                  <button
-                    onClick={() => setActiveChatRequestId(myRequest.id)}
-                    className="flex items-center gap-1"
-                    style={{
-                      background: 'var(--color-grass-mid)', color: 'white',
-                      fontSize: 11, fontWeight: 800,
-                      padding: '6px 10px', borderRadius: 8,
-                      border: 'none', cursor: 'pointer', flexShrink: 0,
-                    }}
-                  >
-                    <MessageCircle size={13} />
-                    대화하기
-                  </button>
+                  <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
+                    {game.status === 'finished' && !myRequest.no_show_reported_by && (
+                      <button
+                        onClick={() => handleNoShowReport(myRequest.id)}
+                        className="flex items-center gap-1"
+                        style={{
+                          background: 'rgba(200,32,43,0.08)', color: 'var(--color-stitch-red)',
+                          fontSize: 10, fontWeight: 800,
+                          padding: '6px 8px', borderRadius: 8,
+                          border: 'none', cursor: 'pointer',
+                        }}
+                      >
+                        <AlertTriangle size={11} />
+                        안 나왔어요
+                      </button>
+                    )}
+                    {game.status === 'finished' && myRequest.no_show_reported_by && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-ink-muted)' }}>
+                        신고완료
+                      </span>
+                    )}
+                    <button
+                      onClick={() => setActiveChatRequestId(myRequest.id)}
+                      className="flex items-center gap-1"
+                      style={{
+                        background: 'var(--color-grass-mid)', color: 'white',
+                        fontSize: 11, fontWeight: 800,
+                        padding: '6px 10px', borderRadius: 8,
+                        border: 'none', cursor: 'pointer',
+                      }}
+                    >
+                      <MessageCircle size={13} />
+                      대화하기
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -398,7 +462,15 @@ export default function MatchTab({ game, isMyGame }) {
                       }}
                     >
                       <div className="flex items-center justify-between">
-                        <span style={{ fontSize: 13, fontWeight: 700 }}>{req.profiles?.nickname}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span style={{ fontSize: 13, fontWeight: 700 }}>{req.profiles?.nickname}</span>
+                          {req.profiles?.no_show_count > 0 && (
+                            <span className="flex items-center gap-0.5" style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-stitch-red)' }}>
+                              <AlertTriangle size={10} />
+                              노쇼 {req.profiles.no_show_count}회
+                            </span>
+                          )}
+                        </div>
                         {req.status === 'pending' ? (
                           <div className="flex gap-2">
                             <button
@@ -421,19 +493,41 @@ export default function MatchTab({ game, isMyGame }) {
                             </button>
                           </div>
                         ) : req.status === 'accepted' ? (
-                          <button
-                            onClick={() => setActiveChatRequestId(req.id)}
-                            className="flex items-center gap-1"
-                            style={{
-                              background: 'rgba(46,107,61,0.1)', color: 'var(--color-grass-mid)',
-                              fontSize: 11, fontWeight: 800,
-                              padding: '4px 10px', borderRadius: 6,
-                              border: 'none', cursor: 'pointer',
-                            }}
-                          >
-                            <MessageCircle size={12} />
-                            대화하기
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            {game.status === 'finished' && !req.no_show_reported_by && (
+                              <button
+                                onClick={() => handleNoShowReport(req.id)}
+                                className="flex items-center gap-1"
+                                style={{
+                                  background: 'rgba(200,32,43,0.08)', color: 'var(--color-stitch-red)',
+                                  fontSize: 10, fontWeight: 800,
+                                  padding: '4px 8px', borderRadius: 6,
+                                  border: 'none', cursor: 'pointer',
+                                }}
+                              >
+                                <AlertTriangle size={10} />
+                                안 나왔어요
+                              </button>
+                            )}
+                            {game.status === 'finished' && req.no_show_reported_by && (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-ink-muted)' }}>
+                                신고완료
+                              </span>
+                            )}
+                            <button
+                              onClick={() => setActiveChatRequestId(req.id)}
+                              className="flex items-center gap-1"
+                              style={{
+                                background: 'rgba(46,107,61,0.1)', color: 'var(--color-grass-mid)',
+                                fontSize: 11, fontWeight: 800,
+                                padding: '4px 10px', borderRadius: 6,
+                                border: 'none', cursor: 'pointer',
+                              }}
+                            >
+                              <MessageCircle size={12} />
+                              대화하기
+                            </button>
+                          </div>
                         ) : (
                           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-ink-muted)' }}>거절됨</span>
                         )}

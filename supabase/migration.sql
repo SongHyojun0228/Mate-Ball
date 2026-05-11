@@ -672,3 +672,135 @@ SELECT cron.schedule(
   ) AS request_id;
   $$
 );
+
+-- =============================================
+-- 노쇼 대비 시스템
+-- =============================================
+
+-- match_requests에 노쇼 신고 컬럼 추가
+ALTER TABLE match_requests
+  ADD COLUMN no_show_reported_by UUID REFERENCES profiles(id);
+
+-- profiles에 노쇼 횟수 컬럼 추가
+ALTER TABLE profiles
+  ADD COLUMN no_show_count INT DEFAULT 0;
+
+-- 노쇼 신고 시 카운트 증가 트리거
+CREATE OR REPLACE FUNCTION handle_no_show_report()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  target_user_id UUID;
+BEGIN
+  IF NEW.no_show_reported_by IS NOT NULL AND OLD.no_show_reported_by IS NULL THEN
+    IF NEW.no_show_reported_by = NEW.requester_id THEN
+      SELECT user_id INTO target_user_id FROM match_posts WHERE id = NEW.post_id;
+    ELSE
+      target_user_id := NEW.requester_id;
+    END IF;
+
+    UPDATE profiles
+    SET no_show_count = no_show_count + 1
+    WHERE id = target_user_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_no_show_report
+  AFTER UPDATE ON match_requests
+  FOR EACH ROW EXECUTE FUNCTION handle_no_show_report();
+
+-- RLS: 글 주인 OR 수락된 신청자 본인이 no_show 신고 가능하도록 확장
+DROP POLICY IF EXISTS "match_requests_update" ON match_requests;
+CREATE POLICY "match_requests_update" ON match_requests FOR UPDATE
+  USING (
+    auth.uid() IN (
+      SELECT user_id FROM match_posts WHERE id = post_id
+    )
+    OR (auth.uid() = requester_id AND status = 'accepted')
+  );
+
+-- =============================================
+-- 팀 변경 월 1회(30일) 제한
+-- =============================================
+
+-- profiles에 팀 변경 시각 기록 컬럼
+ALTER TABLE profiles
+  ADD COLUMN team_changed_at TIMESTAMPTZ;
+
+-- 기존 데이터: 팀이 설정된 유저는 가입일을 team_changed_at으로 설정
+UPDATE profiles SET team_changed_at = created_at WHERE favorite_team_id IS NOT NULL;
+
+-- 팀 변경 제한 트리거
+CREATE OR REPLACE FUNCTION check_team_change_limit()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF OLD.favorite_team_id IS NOT NULL
+    AND NEW.favorite_team_id IS DISTINCT FROM OLD.favorite_team_id
+    AND OLD.team_changed_at IS NOT NULL
+    AND OLD.team_changed_at > now() - interval '30 days'
+  THEN
+    RAISE EXCEPTION '팀 변경은 30일에 1회만 가능합니다. 다음 변경 가능일: %',
+      (OLD.team_changed_at + interval '30 days')::date;
+  END IF;
+
+  IF NEW.favorite_team_id IS DISTINCT FROM OLD.favorite_team_id THEN
+    NEW.team_changed_at := now();
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER on_team_change
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION check_team_change_limit();
+
+-- =============================================
+-- 구단 순위표 (SQL 뷰)
+-- =============================================
+
+CREATE OR REPLACE VIEW team_standings_view AS
+WITH results AS (
+  SELECT home_team_id AS team_id,
+    CASE WHEN home_score > away_score THEN 1 ELSE 0 END AS win,
+    CASE WHEN home_score < away_score THEN 1 ELSE 0 END AS loss,
+    CASE WHEN home_score = away_score THEN 1 ELSE 0 END AS draw
+  FROM games
+  WHERE status = 'finished'
+    AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+  UNION ALL
+  SELECT away_team_id AS team_id,
+    CASE WHEN away_score > home_score THEN 1 ELSE 0 END AS win,
+    CASE WHEN away_score < home_score THEN 1 ELSE 0 END AS loss,
+    CASE WHEN home_score = away_score THEN 1 ELSE 0 END AS draw
+  FROM games
+  WHERE status = 'finished'
+    AND EXTRACT(YEAR FROM date) = EXTRACT(YEAR FROM CURRENT_DATE)
+)
+SELECT
+  t.id AS team_id,
+  t.name AS team_name,
+  t.logo_url,
+  COALESCE(SUM(r.win), 0)::int AS wins,
+  COALESCE(SUM(r.loss), 0)::int AS losses,
+  COALESCE(SUM(r.draw), 0)::int AS draws,
+  COALESCE(SUM(r.win) + SUM(r.loss) + SUM(r.draw), 0)::int AS games_played,
+  CASE WHEN COALESCE(SUM(r.win) + SUM(r.loss), 0) > 0
+    THEN ROUND(SUM(r.win)::numeric / (SUM(r.win) + SUM(r.loss))::numeric, 3)
+    ELSE 0
+  END AS win_rate,
+  RANK() OVER (ORDER BY
+    CASE WHEN COALESCE(SUM(r.win) + SUM(r.loss), 0) > 0
+      THEN SUM(r.win)::numeric / (SUM(r.win) + SUM(r.loss))::numeric
+      ELSE 0 END DESC
+  ) AS rank
+FROM teams t
+LEFT JOIN results r ON r.team_id = t.id
+GROUP BY t.id, t.name, t.logo_url;

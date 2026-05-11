@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Clock } from 'lucide-react'
+import { Clock, ChevronDown, ChevronUp, Trophy } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import GameCard from '../components/GameCard'
 import RaffleBanner from '../components/RaffleBanner'
 import MatchReminder from '../components/MatchReminder'
+import TeamLogo from '../components/TeamLogo'
 
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -37,6 +38,10 @@ export default function Home() {
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState(() => formatDate(new Date()))
   const [userPredictions, setUserPredictions] = useState(new Set())
+  const [standings, setStandings] = useState([])
+  const [standingsOpen, setStandingsOpen] = useState(() => {
+    try { return localStorage.getItem('yame_standings_open') === 'true' } catch { return false }
+  })
 
   const todayStr = formatDate(new Date())
   const weekDates = getWeekDates(weekOffset)
@@ -46,6 +51,22 @@ export default function Home() {
       navigate('/team-select', { replace: true })
     }
   }, [authLoading, user, profile, navigate])
+
+  useEffect(() => {
+    supabase
+      .from('team_standings_view')
+      .select('*')
+      .order('rank')
+      .then(({ data }) => {
+        if (data) setStandings(data)
+      })
+  }, [])
+
+  const toggleStandings = () => {
+    const next = !standingsOpen
+    setStandingsOpen(next)
+    try { localStorage.setItem('yame_standings_open', String(next)) } catch {}
+  }
 
   const fetchGames = useCallback(async (dateStr) => {
     setLoading(true)
@@ -141,6 +162,76 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      {/* 구단 순위표 */}
+      {standings.length > 0 && (
+        <div className="ball-card" style={{ padding: 0, marginBottom: 12, overflow: 'hidden' }}>
+          <button
+            onClick={toggleStandings}
+            className="flex items-center justify-between"
+            style={{
+              width: '100%', padding: '12px 14px',
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'var(--color-ink)', fontWeight: 800, fontSize: 13,
+            }}
+          >
+            <div className="flex items-center gap-1.5">
+              <Trophy size={14} style={{ color: 'var(--color-stitch-red)' }} />
+              구단 순위
+            </div>
+            {standingsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+          {standingsOpen && (
+            <div style={{ padding: '0 10px 12px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1.5px solid var(--color-line)', color: 'var(--color-ink-muted)', fontWeight: 700 }}>
+                    <th style={{ padding: '6px 4px', textAlign: 'center', width: 28 }}>#</th>
+                    <th style={{ padding: '6px 4px', textAlign: 'left' }}>팀</th>
+                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>경기</th>
+                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>승</th>
+                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>패</th>
+                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>무</th>
+                    <th style={{ padding: '6px 4px', textAlign: 'center' }}>승률</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {standings.map((team) => {
+                    const isMyTeam = profile?.favorite_team_id === team.team_id
+                    return (
+                      <tr
+                        key={team.team_id}
+                        style={{
+                          borderBottom: '1px solid var(--color-line-soft)',
+                          background: isMyTeam ? 'rgba(200,32,43,0.06)' : 'transparent',
+                          fontWeight: isMyTeam ? 800 : 600,
+                        }}
+                      >
+                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: 800, color: team.rank <= 3 ? 'var(--color-stitch-red)' : 'var(--color-ink-soft)' }}>
+                          {team.rank}
+                        </td>
+                        <td style={{ padding: '8px 4px' }}>
+                          <div className="flex items-center gap-1.5">
+                            <TeamLogo team={{ id: team.team_id, logo_url: team.logo_url, name: team.team_name }} size={18} />
+                            <span style={{ fontSize: 12, fontWeight: isMyTeam ? 800 : 700 }}>{team.team_name}</span>
+                          </div>
+                        </td>
+                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.games_played}</td>
+                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.wins}</td>
+                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.losses}</td>
+                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center' }}>{team.draws}</td>
+                        <td className="num" style={{ padding: '8px 4px', textAlign: 'center', fontWeight: 800 }}>
+                          {Number(team.win_rate).toFixed(3).slice(1)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* D-1 match reminder */}
       {user && <MatchReminder />}

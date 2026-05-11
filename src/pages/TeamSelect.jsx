@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check } from 'lucide-react'
+import { Check, Lock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import TeamLogo from '../components/TeamLogo'
@@ -13,6 +13,11 @@ export default function TeamSelect() {
   const [nicknameError, setNicknameError] = useState('')
   const { profile, updateFavoriteTeam, fetchProfile, user } = useAuthStore()
   const navigate = useNavigate()
+
+  // 30일 제한 체크
+  const teamChangedAt = profile?.team_changed_at ? new Date(profile.team_changed_at) : null
+  const nextChangeDate = teamChangedAt ? new Date(teamChangedAt.getTime() + 30 * 24 * 60 * 60 * 1000) : null
+  const isTeamChangeLocked = nextChangeDate && nextChangeDate > new Date() && profile?.favorite_team_id
 
   useEffect(() => {
     supabase
@@ -29,7 +34,7 @@ export default function TeamSelect() {
   }, [profile])
 
   const handleConfirm = async () => {
-    if (!selected) return
+    if (!selected && !isTeamChangeLocked) return
     const trimmed = nickname.trim()
     if (!trimmed) {
       setNicknameError('닉네임을 입력해주세요.')
@@ -54,11 +59,18 @@ export default function TeamSelect() {
           throw error
         }
       }
-      await updateFavoriteTeam(selected)
+      // 팀 변경이 잠겨있지 않고 선택된 팀이 현재와 다르면 업데이트
+      if (!isTeamChangeLocked && selected && selected !== profile?.favorite_team_id) {
+        await updateFavoriteTeam(selected)
+      }
       await fetchProfile(user.id)
       navigate('/')
-    } catch {
-      alert('파울볼! 다시 시도해봐요.')
+    } catch (err) {
+      if (err.message?.includes('30일')) {
+        alert(err.message)
+      } else {
+        alert('파울볼! 다시 시도해봐요.')
+      }
     } finally {
       setLoading(false)
     }
@@ -91,8 +103,22 @@ export default function TeamSelect() {
         </div>
 
         {/* 응원팀 선택 */}
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>응원팀 <span style={{ color: 'var(--color-ink-muted)', fontWeight: 600 }}>· 시즌당 1회 변경</span></div>
-        <div className="grid grid-cols-2 gap-3">
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+          응원팀 <span style={{ color: 'var(--color-ink-muted)', fontWeight: 600 }}>· 30일에 1회 변경</span>
+        </div>
+
+        {isTeamChangeLocked && (
+          <div className="flex items-center gap-2" style={{
+            background: 'rgba(200,32,43,0.05)', border: '1px solid rgba(200,32,43,0.15)',
+            borderRadius: 8, padding: '10px 14px', marginBottom: 12,
+            fontSize: 12, fontWeight: 600, color: 'var(--color-stitch-red)',
+          }}>
+            <Lock size={14} />
+            다음 변경 가능일: {nextChangeDate.getFullYear()}-{String(nextChangeDate.getMonth() + 1).padStart(2, '0')}-{String(nextChangeDate.getDate()).padStart(2, '0')}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3" style={isTeamChangeLocked ? { opacity: 0.5, pointerEvents: 'none' } : {}}>
           {teams.map((team) => (
             <button
               key={team.id}
@@ -127,11 +153,11 @@ export default function TeamSelect() {
 
         <button
           onClick={handleConfirm}
-          disabled={!selected || !nickname.trim() || loading}
+          disabled={(!selected && !isTeamChangeLocked) || !nickname.trim() || loading}
           className="btn-stitch"
           style={{ marginTop: 24 }}
         >
-          {loading ? '투구 준비 중...' : '선택 완료!'}
+          {loading ? '투구 준비 중...' : isTeamChangeLocked ? '닉네임 변경' : '선택 완료!'}
         </button>
       </div>
     </div>

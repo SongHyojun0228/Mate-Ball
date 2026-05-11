@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, TrendingUp, Users, MessageCircle, MapPin, Check } from 'lucide-react'
+import { ArrowLeft, TrendingUp, Users, MessageCircle, MapPin, Check, Swords } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import PredictionTab from '../components/PredictionTab'
@@ -22,6 +22,7 @@ export default function GameRoom() {
   const [activeTab, setActiveTab] = useState('prediction')
   const [attendanceRecord, setAttendanceRecord] = useState(null)
   const [addingAttendance, setAddingAttendance] = useState(false)
+  const [h2h, setH2h] = useState(null)
 
   const isMyGame =
     profile?.favorite_team_id &&
@@ -39,6 +40,39 @@ export default function GameRoom() {
         setLoading(false)
       })
   }, [gameId])
+
+  // 상대전적 로드
+  useEffect(() => {
+    if (!game) return
+    const homeId = game.home_team_id
+    const awayId = game.away_team_id
+    supabase
+      .from('games')
+      .select('home_team_id, away_team_id, home_score, away_score, date')
+      .eq('status', 'finished')
+      .or(`and(home_team_id.eq.${homeId},away_team_id.eq.${awayId}),and(home_team_id.eq.${awayId},away_team_id.eq.${homeId})`)
+      .order('date', { ascending: false })
+      .limit(10)
+      .then(({ data }) => {
+        if (!data || data.length === 0) {
+          setH2h({ homeWins: 0, awayWins: 0, draws: 0, recent: [] })
+          return
+        }
+        let homeWins = 0, awayWins = 0, draws = 0
+        data.forEach((g) => {
+          let hScore, aScore
+          if (g.home_team_id === homeId) {
+            hScore = g.home_score; aScore = g.away_score
+          } else {
+            hScore = g.away_score; aScore = g.home_score
+          }
+          if (hScore > aScore) homeWins++
+          else if (hScore < aScore) awayWins++
+          else draws++
+        })
+        setH2h({ homeWins, awayWins, draws, recent: data.slice(0, 5) })
+      })
+  }, [game])
 
   // 직관 기록 확인
   useEffect(() => {
@@ -172,6 +206,103 @@ export default function GameRoom() {
           fontSize: 12, color: 'var(--color-ink-soft)', fontWeight: 600, textAlign: 'center',
         }}>
           내 응원팀 경기는 아니지만, 승부예측은 할 수 있어요!
+        </div>
+      )}
+
+      {/* 상대전적 */}
+      {h2h && (h2h.homeWins > 0 || h2h.awayWins > 0 || h2h.draws > 0) && (
+        <div className="ball-card" style={{ padding: 14, marginTop: 10 }}>
+          <div className="flex items-center gap-1.5" style={{ marginBottom: 10 }}>
+            <Swords size={13} style={{ color: 'var(--color-stitch-red)' }} />
+            <span style={{ fontSize: 12, fontWeight: 800 }}>시즌 상대전적</span>
+          </div>
+
+          {/* 전적 요약 */}
+          <div className="flex items-center justify-center gap-3" style={{ marginBottom: 10 }}>
+            <div className="flex flex-col items-center gap-1">
+              <TeamLogo team={game.away_team} size={28} />
+              <span style={{ fontSize: 11, fontWeight: 700 }}>{game.away_team?.name?.split(' ')[0]}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="num" style={{ fontSize: 20, fontWeight: 900, color: h2h.awayWins > h2h.homeWins ? 'var(--color-stitch-red)' : 'var(--color-ink-soft)' }}>
+                {h2h.awayWins}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-ink-muted)' }}>승</span>
+              {h2h.draws > 0 && (
+                <>
+                  <span className="num" style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-ink-muted)' }}>{h2h.draws}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-ink-muted)' }}>무</span>
+                </>
+              )}
+              <span className="num" style={{ fontSize: 20, fontWeight: 900, color: h2h.homeWins > h2h.awayWins ? 'var(--color-stitch-red)' : 'var(--color-ink-soft)' }}>
+                {h2h.homeWins}
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-ink-muted)' }}>승</span>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <TeamLogo team={game.home_team} size={28} />
+              <span style={{ fontSize: 11, fontWeight: 700 }}>{game.home_team?.name?.split(' ')[0]}</span>
+            </div>
+          </div>
+
+          {/* 프로그레스 바 */}
+          {(() => {
+            const total = h2h.awayWins + h2h.homeWins + h2h.draws
+            if (total === 0) return null
+            const awayPct = (h2h.awayWins / total) * 100
+            const drawPct = (h2h.draws / total) * 100
+            return (
+              <div style={{ height: 6, borderRadius: 3, overflow: 'hidden', display: 'flex', background: 'var(--color-line-soft)', marginBottom: 10 }}>
+                <div style={{ width: `${awayPct}%`, background: 'var(--color-stitch-red)' }} />
+                <div style={{ width: `${drawPct}%`, background: 'var(--color-dirt-sand)' }} />
+                <div style={{ flex: 1, background: 'var(--color-dark-navy)' }} />
+              </div>
+            )
+          })()}
+
+          {/* 최근 경기 */}
+          {h2h.recent.length > 0 && (
+            <div>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-ink-muted)', marginBottom: 6, letterSpacing: '0.05em' }}>
+                최근 경기
+              </p>
+              {h2h.recent.map((g, i) => {
+                const isNormal = g.home_team_id === game.home_team_id
+                const awayScore = isNormal ? g.away_score : g.home_score
+                const homeScore = isNormal ? g.home_score : g.away_score
+                const awayName = game.away_team?.name?.split(' ')[0]
+                const homeName = game.home_team?.name?.split(' ')[0]
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between"
+                    style={{ padding: '4px 0', borderBottom: i < h2h.recent.length - 1 ? '1px solid var(--color-line-soft)' : 'none' }}
+                  >
+                    <span style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontWeight: 600, width: 44 }}>
+                      {g.date?.slice(5)}
+                    </span>
+                    <span className="num" style={{ fontSize: 12, fontWeight: 700 }}>
+                      {awayName} <span style={{ fontWeight: 900, color: awayScore > homeScore ? 'var(--color-stitch-red)' : 'var(--color-ink-soft)' }}>{awayScore}</span>
+                      <span style={{ color: 'var(--color-ink-muted)', margin: '0 4px' }}>:</span>
+                      <span style={{ fontWeight: 900, color: homeScore > awayScore ? 'var(--color-stitch-red)' : 'var(--color-ink-soft)' }}>{homeScore}</span> {homeName}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {h2h && h2h.homeWins === 0 && h2h.awayWins === 0 && h2h.draws === 0 && (
+        <div className="ball-card" style={{ padding: 14, marginTop: 10 }}>
+          <div className="flex items-center gap-1.5" style={{ marginBottom: 6 }}>
+            <Swords size={13} style={{ color: 'var(--color-stitch-red)' }} />
+            <span style={{ fontSize: 12, fontWeight: 800 }}>시즌 상대전적</span>
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--color-ink-muted)', textAlign: 'center', padding: '6px 0' }}>
+            올 시즌 상대전적이 없습니다
+          </p>
         </div>
       )}
 

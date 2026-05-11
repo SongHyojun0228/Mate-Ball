@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { TrendingUp, MapPin, Star, Ticket, Trophy } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
@@ -12,7 +13,8 @@ const tabs = [
 ]
 
 export default function MyPage() {
-  const { user, profile } = useAuthStore()
+  const { user, profile, deleteAccount } = useAuthStore()
+  const navigate = useNavigate()
   const [predictions, setPredictions] = useState([])
   const [loading, setLoading] = useState(true)
   const [ticketCount, setTicketCount] = useState(0)
@@ -279,6 +281,28 @@ export default function MyPage() {
       )}
 
       {activeTab === 'attendance' && <AttendanceHistory />}
+
+      {/* 회원탈퇴 */}
+      <div className="text-center" style={{ marginTop: 32, paddingBottom: 20 }}>
+        <button
+          onClick={async () => {
+            if (!window.confirm('정말 탈퇴하시겠어요?\n모든 데이터가 삭제되며 복구할 수 없습니다.')) return
+            try {
+              await deleteAccount()
+              navigate('/login')
+            } catch {
+              alert('탈퇴 처리 중 오류가 발생했어요.')
+            }
+          }}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 12, color: 'var(--color-ink-muted)', fontWeight: 600,
+            textDecoration: 'underline',
+          }}
+        >
+          회원탈퇴
+        </button>
+      </div>
     </div>
   )
 }

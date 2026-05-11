@@ -9,7 +9,9 @@ export default function TeamSelect() {
   const [teams, setTeams] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(false)
-  const updateFavoriteTeam = useAuthStore((s) => s.updateFavoriteTeam)
+  const [nickname, setNickname] = useState('')
+  const [nicknameError, setNicknameError] = useState('')
+  const { profile, updateFavoriteTeam, fetchProfile, user } = useAuthStore()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -22,12 +24,38 @@ export default function TeamSelect() {
       })
   }, [])
 
+  useEffect(() => {
+    if (profile?.nickname) setNickname(profile.nickname)
+  }, [profile])
+
   const handleConfirm = async () => {
     if (!selected) return
+    const trimmed = nickname.trim()
+    if (!trimmed) {
+      setNicknameError('닉네임을 입력해주세요.')
+      return
+    }
+    setNicknameError('')
     setLoading(true)
 
     try {
+      // 닉네임이 변경됐으면 업데이트
+      if (trimmed !== profile?.nickname) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ nickname: trimmed })
+          .eq('id', user.id)
+        if (error) {
+          if (error.message?.includes('duplicate') || error.code === '23505') {
+            setNicknameError('이미 사용 중인 닉네임이에요.')
+            setLoading(false)
+            return
+          }
+          throw error
+        }
+      }
       await updateFavoriteTeam(selected)
+      await fetchProfile(user.id)
       navigate('/')
     } catch {
       alert('파울볼! 다시 시도해봐요.')
@@ -39,11 +67,31 @@ export default function TeamSelect() {
   return (
     <div className="max-w-md mx-auto">
       <div className="ball-card" style={{ padding: 32 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 900, textAlign: 'center', marginBottom: 8 }}>응원팀 선택</h1>
-        <p style={{ textAlign: 'center', color: 'var(--color-ink-muted)', fontSize: 13, marginBottom: 24 }}>
-          시즌당 1회 변경 가능해요
+        <h1 style={{ fontSize: 22, fontWeight: 900, textAlign: 'center', marginBottom: 8 }}>프로필 설정</h1>
+        <p style={{ textAlign: 'center', color: 'var(--color-ink-muted)', fontSize: 13, marginBottom: 20 }}>
+          닉네임과 응원팀을 설정해주세요
         </p>
 
+        {/* 닉네임 입력 */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>닉네임</label>
+          <input
+            type="text"
+            value={nickname}
+            onChange={(e) => { setNickname(e.target.value); setNicknameError('') }}
+            maxLength={20}
+            className="field-input"
+            placeholder="야구장에서 불릴 이름"
+          />
+          {nicknameError && (
+            <p style={{ fontSize: 12, color: 'var(--color-stitch-red)', marginTop: 4, fontWeight: 600 }}>
+              {nicknameError}
+            </p>
+          )}
+        </div>
+
+        {/* 응원팀 선택 */}
+        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>응원팀 <span style={{ color: 'var(--color-ink-muted)', fontWeight: 600 }}>· 시즌당 1회 변경</span></div>
         <div className="grid grid-cols-2 gap-3">
           {teams.map((team) => (
             <button
@@ -79,7 +127,7 @@ export default function TeamSelect() {
 
         <button
           onClick={handleConfirm}
-          disabled={!selected || loading}
+          disabled={!selected || !nickname.trim() || loading}
           className="btn-stitch"
           style={{ marginTop: 24 }}
         >

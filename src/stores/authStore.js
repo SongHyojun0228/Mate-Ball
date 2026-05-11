@@ -55,10 +55,7 @@ export const useAuthStore = create((set, get) => ({
   signInWithKakao: async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: {
-        redirectTo: window.location.origin + '/',
-        scopes: 'profile_nickname profile_image',
-      },
+      options: { redirectTo: window.location.origin + '/' },
     })
     if (error) throw error
   },
@@ -66,6 +63,13 @@ export const useAuthStore = create((set, get) => ({
   signOut: async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    set({ user: null, profile: null })
+  },
+
+  deleteAccount: async () => {
+    const { error } = await supabase.rpc('delete_user')
+    if (error) throw error
+    await supabase.auth.signOut()
     set({ user: null, profile: null })
   },
 

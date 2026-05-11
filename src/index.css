@@ -1,0 +1,392 @@
+@import "tailwindcss";
+
+@theme {
+  /* Baseball palette */
+  --color-ball-white: #fafaf6;
+  --color-ball-cream: #f1ece1;
+  --color-stitch-red: #c8202b;
+  --color-stitch-deep: #9c1820;
+  --color-grass-deep: #1f4d2c;
+  --color-grass-mid: #2e6b3d;
+  --color-dirt-warm: #b08862;
+  --color-dirt-light: #d4b896;
+  --color-chalk: #ffffff;
+  --color-ink: #14110d;
+  --color-ink-soft: #3a352d;
+  --color-ink-muted: #7a7165;
+  --color-line-soft: #e6dfce;
+  --color-line: #d6cdb8;
+  --color-score-yellow: #ffd76b;
+
+  /* Aliases for Tailwind utilities (backward compat) */
+  --color-primary: #fafaf6;
+  --color-accent: #c8202b;
+  --color-dark: #14110d;
+  --color-stitch: #9c1820;
+  --color-grass: #1f4d2c;
+  --color-grass-light: #2e6b3d;
+  --color-dirt: #b08862;
+  --color-subtext: #7a7165;
+  --color-border: #d6cdb8;
+  --color-nav: #e6dfce;
+  --color-card-hover: #f1ece1;
+
+  --font-sans: 'Pretendard', -apple-system, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-ball-cream);
+}
+
+#root {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ─── Monospace numerals — scoreboard feel ─── */
+.num, .score, .stat-num {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1;
+}
+
+/* ─── App background: dirt with foul lines + stitch arcs ─── */
+.app-bg {
+  background:
+    linear-gradient(135deg, transparent 49.7%, rgba(255,255,255,0.45) 49.7%, rgba(255,255,255,0.45) 50.3%, transparent 50.3%) no-repeat -50% -10%/220% 120%,
+    linear-gradient(45deg, transparent 49.7%, rgba(255,255,255,0.45) 49.7%, rgba(255,255,255,0.45) 50.3%, transparent 50.3%) no-repeat 150% -10%/220% 120%,
+    radial-gradient(ellipse 110% 60% at 50% -10%, #e8d8b8 0%, #f1ece1 55%, #f1ece1 100%);
+  background-color: var(--color-ball-cream);
+  position: relative;
+}
+.app-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% -30%, transparent 58%, rgba(200,32,43,0.12) 58.5%, rgba(200,32,43,0.12) 59.2%, transparent 59.7%) no-repeat,
+    radial-gradient(circle at 50% 130%, transparent 58%, rgba(200,32,43,0.12) 58.5%, rgba(200,32,43,0.12) 59.2%, transparent 59.7%) no-repeat;
+  pointer-events: none;
+}
+
+/* ─── Ball card ─── */
+.ball-card {
+  background: var(--color-ball-white);
+  border-radius: 14px;
+  border: 1px solid var(--color-line);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 16px -8px rgba(20,17,13,0.12);
+  position: relative;
+}
+.ball-card.stitched {
+  border: 1.5px dashed var(--color-stitch-red);
+}
+
+/* ─── Scoreboard tile (dark green, mono numbers) ─── */
+.scoreboard {
+  background: linear-gradient(180deg, #234d2e 0%, #1a3c22 100%);
+  color: var(--color-chalk);
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 2px 6px rgba(0,0,0,0.2);
+}
+.scoreboard .label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.55);
+  font-weight: 600;
+}
+.scoreboard .value {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: var(--color-score-yellow);
+  text-shadow: 0 0 8px rgba(255,200,80,0.3);
+}
+
+/* ─── Red stitched button (primary action) ─── */
+.btn-stitch {
+  background: var(--color-stitch-red);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 15px;
+  cursor: pointer;
+  position: relative;
+  box-shadow: 0 2px 0 var(--color-stitch-deep), 0 4px 10px -4px rgba(200,32,43,0.5);
+  outline: 2px dashed rgba(255,255,255,0.6);
+  outline-offset: -6px;
+  transition: transform 0.08s, box-shadow 0.08s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+.btn-stitch:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--color-stitch-deep), 0 2px 6px -2px rgba(200,32,43,0.5);
+}
+.btn-stitch:disabled {
+  background: var(--color-line);
+  box-shadow: none;
+  outline-color: rgba(255,255,255,0.4);
+  cursor: not-allowed;
+  color: rgba(255,255,255,0.8);
+}
+
+/* ─── Ghost button ─── */
+.btn-ghost {
+  background: var(--color-ball-white);
+  border: 1.5px solid var(--color-ink);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--color-ink);
+}
+.btn-ghost:hover {
+  background: var(--color-ball-cream);
+}
+.btn-ghost.selected {
+  background: var(--color-ink);
+  color: white;
+}
+
+/* ─── Dugout tabs ─── */
+.dugout-tabs {
+  display: flex;
+  background: var(--color-ink);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 2px;
+}
+.dugout-tabs button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.55);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.dugout-tabs button.active {
+  background: var(--color-stitch-red);
+  color: white;
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.25);
+}
+.dugout-tabs button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Scorecard tab nav (top of app) ─── */
+.scorecard-tabnav {
+  display: flex;
+  background: var(--color-ball-white);
+  border-bottom: 1px solid var(--color-line);
+}
+.scorecard-tabnav button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 12px 8px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.scorecard-tabnav button.active {
+  color: var(--color-ink);
+}
+.scorecard-tabnav button.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 3px;
+  background: var(--color-stitch-red);
+  border-radius: 2px 2px 0 0;
+}
+
+/* ─── Scoreboard header ─── */
+.scoreboard-header {
+  background: linear-gradient(180deg, #1f4329 0%, #14301c 100%);
+  color: var(--color-chalk);
+  position: relative;
+  border-bottom: 3px solid var(--color-stitch-red);
+}
+.scoreboard-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 3px;
+  background-image: linear-gradient(90deg, transparent 50%, white 50%);
+  background-size: 8px 3px;
+  opacity: 0.4;
+}
+
+/* ─── Status badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+.badge-live {
+  background: var(--color-stitch-red);
+  color: white;
+}
+.badge-live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  animation: livepulse 1s infinite;
+}
+@keyframes livepulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.badge-scheduled {
+  background: var(--color-line-soft);
+  color: var(--color-ink-soft);
+}
+.badge-final {
+  background: var(--color-ink);
+  color: white;
+}
+.badge-cancelled {
+  background: var(--color-dirt-light);
+  color: var(--color-ink-soft);
+}
+.badge-hit {
+  background: var(--color-grass-mid);
+  color: white;
+}
+.badge-miss {
+  background: var(--color-dirt-warm);
+  color: white;
+}
+
+/* ─── Stat tile ─── */
+.stat-tile {
+  background: var(--color-ball-white);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.stat-tile .stat-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--color-ink);
+  line-height: 1.1;
+}
+.stat-tile .stat-label {
+  font-size: 11px;
+  color: var(--color-ink-muted);
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+/* ─── Chat bubbles ─── */
+.bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+.bubble-me {
+  background: var(--color-stitch-red);
+  color: white;
+  border-bottom-right-radius: 4px;
+  margin-left: auto;
+  outline: 1.5px dashed rgba(255,255,255,0.4);
+  outline-offset: -4px;
+}
+.bubble-them {
+  background: var(--color-ball-white);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-bottom-left-radius: 4px;
+}
+
+/* ─── Field input ─── */
+.field-input {
+  width: 100%;
+  background: var(--color-ball-white);
+  border: 1.5px solid var(--color-line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--color-ink);
+  box-sizing: border-box;
+  outline: none;
+}
+.field-input:focus {
+  border-color: var(--color-ink);
+}
+
+/* ─── Field divider ─── */
+.field-divider {
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--color-line) 0 8px, transparent 8px 14px);
+  margin: 12px 0;
+}
+
+/* ─── Team logo with brand ring ─── */
+.team-logo-ring {
+  border-radius: 50%;
+  background: var(--color-chalk);
+  border: 2px solid var(--color-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* hide scrollbar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }

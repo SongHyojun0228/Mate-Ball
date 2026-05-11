@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>야메 — 야구 메이트</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  html, body { height: 100%; }
+  body { background: #1a1814; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="android-frame.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+function YameApp({ frame = 'ios' }) {
+  const [route, setRoute] = useState({ screen: 'home', param: null });
+  const [myTeam] = useState('hanwha');
+
+  const go = (screen, param = null) => setRoute({ screen, param });
+
+  const screen = route.screen;
+  const showHeader = !['thread'].includes(screen);
+  const tabScreen = ['home','draw','inbox','profile'].includes(screen) ? screen : null;
+
+  return (
+    <div className="app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} data-screen-label={screen}>
+      {showHeader && <AppHeader team={myTeam}/>}
+      {showHeader && <TabNav active={tabScreen || 'home'} onChange={(t) => go(t)}/>}
+      <div style={{ flex: 1, overflow: 'auto' }} className="no-scrollbar">
+        {screen === 'home' && <HomeScreen go={go} myTeam={myTeam}/>}
+        {screen === 'game' && <GameDetailScreen go={go} gameId={route.param} myTeam={myTeam}/>}
+        {screen === 'draw' && <DrawScreen go={go}/>}
+        {screen === 'inbox' && <InboxScreen go={go}/>}
+        {screen === 'thread' && <ThreadScreen go={go}/>}
+        {screen === 'profile' && <ProfileScreen go={go} myTeam={myTeam}/>}
+      </div>
+      {showHeader && (
+        <div style={{ background: 'var(--grass-deep)', color: 'rgba(255,255,255,0.85)', textAlign: 'center', padding: '10px 14px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em' }}>
+          야메(YAME) — 야구 메이트 · 야구는 같이 봐야 제맛
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [section, setSection] = useState('all');
+  const sections = [
+    { id: 'home', label: '01 홈', screen: 'home' },
+    { id: 'game-pred', label: '02 경기상세 · 승부예측', screen: 'game-pred' },
+    { id: 'game-match', label: '03 경기상세 · 직관매칭', screen: 'game-match' },
+    { id: 'game-cheer', label: '04 경기상세 · 응원토크', screen: 'game-cheer' },
+    { id: 'draw', label: '05 치킨 추첨', screen: 'draw' },
+    { id: 'inbox', label: '06 쪽지함', screen: 'inbox' },
+    { id: 'thread', label: '07 쪽지', screen: 'thread' },
+    { id: 'profile', label: '08 프로필', screen: 'profile' },
+  ];
+
+  return (
+    <DesignCanvas title="야메(YAME) — 야구 메이트" subtitle="야구장 흙 + 라인 텍스처, 화이트/레드 스티치, 모노 스코어보드 숫자">
+      <DCSection id="ios" title="iOS — 인터랙티브 (실제로 눌러보세요)">
+        <DCArtboard id="ios-live" label="iOS · 라이브 프로토타입" width={402} height={874}>
+          <IOSDevice width={402} height={874}>
+            <YameApp frame="ios"/>
+          </IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="and-live" label="Android · 라이브 프로토타입" width={412} height={892}>
+          <AndroidDevice width={412} height={892}>
+            <YameApp frame="android"/>
+          </AndroidDevice>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="all-screens" title="전체 화면 — 미리보기">
+        <DCArtboard id="s-home" label="01 오늘의 경기" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="home"/></IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="s-game-p" label="02 승부예측 (다른팀 경기)" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="game" gameId="g3" tab="predict"/></IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="s-game-m" label="03 직관매칭" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="game" gameId="g4" tab="match"/></IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="s-game-c" label="04 응원토크" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="game" gameId="g4" tab="cheer"/></IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="s-draw" label="05 치킨 추첨" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="draw"/></IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="s-inbox" label="06 쪽지함" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="inbox"/></IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="s-thread" label="07 쪽지" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="thread"/></IOSDevice>
+        </DCArtboard>
+        <DCArtboard id="s-profile" label="08 프로필" width={402} height={874}>
+          <IOSDevice width={402} height={874}><PreviewScreen screen="profile"/></IOSDevice>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="and-screens" title="Android 변형">
+        <DCArtboard id="a-home" label="Android · 오늘의 경기" width={412} height={892}>
+          <AndroidDevice width={412} height={892}><PreviewScreen screen="home"/></AndroidDevice>
+        </DCArtboard>
+        <DCArtboard id="a-game" label="Android · 경기 상세" width={412} height={892}>
+          <AndroidDevice width={412} height={892}><PreviewScreen screen="game" gameId="g4" tab="cheer"/></AndroidDevice>
+        </DCArtboard>
+        <DCArtboard id="a-profile" label="Android · 프로필" width={412} height={892}>
+          <AndroidDevice width={412} height={892}><PreviewScreen screen="profile"/></AndroidDevice>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+// Static-ish preview wrapper with optional initial sub-tab
+function PreviewScreen({ screen, gameId, tab }) {
+  const myTeam = 'hanwha';
+  // Override GameDetailScreen initial tab via wrapper
+  const Wrapper = () => {
+    if (screen === 'game') return <GameDetailWithTab gameId={gameId} initialTab={tab} myTeam={myTeam}/>;
+    if (screen === 'home') return <HomeScreen go={() => {}} myTeam={myTeam}/>;
+    if (screen === 'draw') return <DrawScreen go={() => {}}/>;
+    if (screen === 'inbox') return <InboxScreen go={() => {}}/>;
+    if (screen === 'thread') return <ThreadScreen go={() => {}}/>;
+    if (screen === 'profile') return <ProfileScreen go={() => {}} myTeam={myTeam}/>;
+    return null;
+  };
+  const showHeader = screen !== 'thread';
+  const tabScreen = ['home','draw','inbox','profile'].includes(screen) ? screen : 'home';
+  return (
+    <div className="app-bg" style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {showHeader && <AppHeader team={myTeam}/>}
+      {showHeader && <TabNav active={tabScreen} onChange={() => {}}/>}
+      <div style={{ flex: 1, overflow: 'auto' }} className="no-scrollbar">
+        <Wrapper/>
+      </div>
+      {showHeader && (
+        <div style={{ background: 'var(--grass-deep)', color: 'rgba(255,255,255,0.85)', textAlign: 'center', padding: '10px 14px', fontSize: 11, fontWeight: 700 }}>
+          야메(YAME) — 야구 메이트 · 야구는 같이 봐야 제맛
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GameDetailWithTab({ gameId, initialTab, myTeam }) {
+  // Re-render of GameDetailScreen with tab forced via key
+  return <GameDetailScreen go={() => {}} gameId={gameId} myTeam={myTeam} key={initialTab}/>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
+
+
+
+

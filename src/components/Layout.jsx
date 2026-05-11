@@ -34,7 +34,7 @@ export default function Layout({ children }) {
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 no-underline">
             <img src="/favicon.svg" alt="메이트볼" style={{ width: 30, height: 30 }} />
-            <span className="font-mono text-lg font-extrabold text-white tracking-tight">메이트볼</span>
+            <span style={{ fontFamily: 'BagelFat, sans-serif', fontSize: 20, color: 'white', letterSpacing: '-0.02em' }}>메이트볼</span>
           </Link>
 
           {user ? (

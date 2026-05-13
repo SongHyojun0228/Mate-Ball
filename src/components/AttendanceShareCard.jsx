@@ -1,3 +1,5 @@
+import { getTeamLogoUrl } from '../lib/shareUtils'
+
 const dayNamesEn = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
 // Inline baseball SVG logo
@@ -30,12 +32,12 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
   const pad = (n) => String(n).padStart(2, '0')
   const dateStr = `${dateObj.getFullYear()}.${pad(dateObj.getMonth() + 1)}.${pad(dateObj.getDate())} ${dayNamesEn[dateObj.getDay()]}`
 
-  const awayLogo = game.away_team?.logo_url
-  const homeLogo = game.home_team?.logo_url
+  const awayLogo = getTeamLogoUrl(game.away_team?.id)
+  const homeLogo = getTeamLogoUrl(game.home_team?.id)
   const awayName = game.away_team?.name || ''
   const homeName = game.home_team?.name || ''
 
-  const myTeamIsHome = isHome
+  const myTeamName = isHome ? homeName : awayName
 
   return (
     <div
@@ -49,7 +51,7 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
       }}
     >
       {/* Header */}
-      <div style={{ textAlign: 'center', paddingTop: 32 }}>
+      <div style={{ textAlign: 'center', paddingTop: 28 }}>
         <div style={{
           fontSize: 11, fontWeight: 700, letterSpacing: '0.2em',
           color: '#7a7165',
@@ -62,11 +64,17 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
         }}>
           직관 기록
         </div>
+        <div style={{
+          fontSize: 13, fontWeight: 700, color: '#7a7165',
+          marginTop: 4,
+        }}>
+          {myTeamName}
+        </div>
       </div>
 
       {/* Scoreboard area with dashed border */}
       <div style={{
-        margin: '20px 24px 0',
+        margin: '16px 24px 0',
         border: '2px dashed #c8202b',
         borderRadius: 14,
         padding: '16px 16px 14px',
@@ -96,17 +104,17 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
         {/* Score display */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 14, marginTop: 16,
+          gap: 8, marginTop: 16,
         }}>
           {/* Away team logo */}
-          <div style={{ textAlign: 'center', width: 56 }}>
+          <div style={{ textAlign: 'center', width: 56, flexShrink: 0 }}>
             {awayLogo ? (
               <img src={awayLogo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} crossOrigin="anonymous" />
             ) : (
               <div style={{
                 width: 52, height: 52, borderRadius: '50%',
                 background: '#7a7165', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'white', fontWeight: 800, fontSize: 16,
+                color: 'white', fontWeight: 800, fontSize: 18,
               }}>{awayName.charAt(0)}</div>
             )}
           </div>
@@ -116,19 +124,20 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
             fontFamily: "'JetBrains Mono', ui-monospace, monospace",
             fontSize: 36, fontWeight: 900, color: '#14110d',
             letterSpacing: 2,
+            whiteSpace: 'nowrap', flexShrink: 0,
           }}>
             {game.away_score} : {game.home_score}
           </div>
 
           {/* Home team logo */}
-          <div style={{ textAlign: 'center', width: 56 }}>
+          <div style={{ textAlign: 'center', width: 56, flexShrink: 0 }}>
             {homeLogo ? (
               <img src={homeLogo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} crossOrigin="anonymous" />
             ) : (
               <div style={{
                 width: 52, height: 52, borderRadius: '50%',
                 background: '#7a7165', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'white', fontWeight: 800, fontSize: 16,
+                color: 'white', fontWeight: 800, fontSize: 18,
               }}>{homeName.charAt(0)}</div>
             )}
           </div>
@@ -137,20 +146,20 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
         {/* Team names with checkmark on user's team */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          gap: 14, marginTop: 6,
+          gap: 8, marginTop: 6,
         }}>
-          <div style={{ width: 56, textAlign: 'center' }}>
+          <div style={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#3a352d' }}>
               {awayName.split(' ')[0]}
             </span>
-            {!myTeamIsHome && <span style={{ color: '#c8202b', fontSize: 13, fontWeight: 800 }}> &#10003;</span>}
+            {!isHome && <span style={{ color: '#c8202b', fontSize: 13, fontWeight: 800 }}> &#10003;</span>}
           </div>
-          <div style={{ width: 80 }} />
-          <div style={{ width: 56, textAlign: 'center' }}>
+          <div style={{ width: 80, flexShrink: 0 }} />
+          <div style={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#3a352d' }}>
               {homeName.split(' ')[0]}
             </span>
-            {myTeamIsHome && <span style={{ color: '#c8202b', fontSize: 13, fontWeight: 800 }}> &#10003;</span>}
+            {isHome && <span style={{ color: '#c8202b', fontSize: 13, fontWeight: 800 }}> &#10003;</span>}
           </div>
         </div>
 
@@ -165,8 +174,11 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
         )}
       </div>
 
-      {/* Certification text */}
-      <div style={{ textAlign: 'center', marginTop: 24 }}>
+      {/* Certification text — absolute positioned */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, bottom: 70,
+        textAlign: 'center',
+      }}>
         <div style={{
           fontSize: 24, fontWeight: 900, color: certColor,
         }}>
@@ -183,7 +195,7 @@ export default function AttendanceShareCard({ game, favoriteTeamId, nickname }) 
       <div style={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         display: 'flex', alignItems: 'center',
-        padding: '16px 24px',
+        padding: '14px 24px',
         borderTop: '1px dashed #d6cdb8',
         gap: 6,
       }}>

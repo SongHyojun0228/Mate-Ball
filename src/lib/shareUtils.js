@@ -1,5 +1,15 @@
 import html2canvas from 'html2canvas'
 
+const teamLogoFile = {
+  KIA: 'KIA', LG: 'LG', SSG: 'SSG', KT: 'KT', NC: 'NC',
+  '두산': 'doosan', '한화': 'hanwha', '롯데': 'lotte', '삼성': 'samsung', '키움': 'kiwoom',
+}
+
+export function getTeamLogoUrl(teamId) {
+  const file = teamLogoFile[teamId]
+  return file ? `/team_logo/${file}.svg` : null
+}
+
 export const teamHexColors = {
   KIA: '#e3242b',
   LG: '#a50034',

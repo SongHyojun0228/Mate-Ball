@@ -1,21 +1,24 @@
 import { useState } from 'react'
 import { teamColors } from '../lib/teamColors'
+import { getTeamLogoUrl } from '../lib/shareUtils'
 
 export default function TeamLogo({ team, size = 32, className = '' }) {
-  const [imgError, setImgError] = useState(false)
+  const [svgError, setSvgError] = useState(false)
 
   if (!team) return null
 
   const style = { width: size, height: size, minWidth: size, minHeight: size }
 
-  if (team.logo_url && !imgError) {
+  const localSvg = getTeamLogoUrl(team.id)
+
+  if (localSvg && !svgError) {
     return (
       <img
-        src={team.logo_url}
+        src={localSvg}
         alt={team.name}
         style={style}
         className={`object-contain ${className}`}
-        onError={() => setImgError(true)}
+        onError={() => setSvgError(true)}
       />
     )
   }

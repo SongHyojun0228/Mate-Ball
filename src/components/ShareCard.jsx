@@ -1,4 +1,4 @@
-import { teamHexColors } from '../lib/shareUtils'
+import { teamHexColors, getTeamLogoUrl } from '../lib/shareUtils'
 
 function BaseballLogo({ size = 20 }) {
   return (
@@ -15,7 +15,7 @@ export default function ShareCard({ profile, total, correct, accuracy, attendanc
   const teamName = profile?.teams?.name || ''
   const teamId = profile?.favorite_team_id
   const teamColor = teamHexColors[teamId] || '#1f4d2c'
-  const teamLogo = profile?.teams?.logo_url || null
+  const teamLogo = getTeamLogoUrl(teamId)
 
   // Build titles
   const titles = []

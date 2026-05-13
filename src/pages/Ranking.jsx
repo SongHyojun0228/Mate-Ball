@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Trophy } from 'lucide-react'
+import { Trophy, Award } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import TeamLogo from '../components/TeamLogo'
@@ -10,6 +10,7 @@ export default function Ranking() {
   const [rankings, setRankings] = useState([])
   const [myRank, setMyRank] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
   const [sortBy, setSortBy] = useState('accuracy') // 'accuracy' | 'correct'
 
   useEffect(() => {
@@ -22,6 +23,11 @@ export default function Ranking() {
         .order(orderCol, { ascending: false })
         .order('correct', { ascending: false })
         .limit(50)
+
+      const { count: total } = await supabase
+        .from('prediction_rankings')
+        .select('*', { count: 'exact', head: true })
+      setTotalCount(total || 0)
 
       if (data) {
         setRankings(data)
@@ -59,6 +65,8 @@ export default function Ranking() {
     return null
   }
 
+  const isTop5Pct = (rank) => totalCount > 0 && rank <= Math.max(1, Math.ceil(totalCount * 0.05))
+
   const RankRow = ({ item, rank, isMe }) => (
     <div
       className={`ball-card${isMe ? ' stitched' : ''} flex items-center gap-3`}
@@ -77,9 +85,29 @@ export default function Ranking() {
       </div>
       <TeamLogo team={{ id: item.favorite_team_id, name: item.team_name, logo_url: null }} size={28} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div className="flex items-center gap-1.5" style={{ fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {item.nickname}
-          {isMe && <span style={{ fontSize: 10, color: 'var(--color-stitch-red)', marginLeft: 6 }}>ME</span>}
+          {isMe && <span style={{ fontSize: 10, color: 'var(--color-stitch-red)', marginLeft: 4 }}>ME</span>}
+          {rank === 1 && (
+            <span className="flex items-center gap-0.5" style={{
+              background: '#FFD700', color: '#1A1A2E',
+              fontSize: 9, fontWeight: 800, padding: '2px 6px',
+              borderRadius: 999, marginLeft: 2, flexShrink: 0,
+            }}>
+              <Award size={9} />
+              예측왕
+            </span>
+          )}
+          {rank !== 1 && isTop5Pct(rank) && (
+            <span className="flex items-center gap-0.5" style={{
+              background: 'var(--color-stitch-red)', color: 'white',
+              fontSize: 9, fontWeight: 800, padding: '2px 6px',
+              borderRadius: 999, marginLeft: 2, flexShrink: 0,
+            }}>
+              <Award size={9} />
+              적중 장인
+            </span>
+          )}
         </div>
         {item.team_name && (
           <div style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontWeight: 600 }}>{item.team_name}</div>
@@ -139,13 +167,23 @@ export default function Ranking() {
         </div>
       )}
 
-      {/* My rank (if not in top 50) */}
-      {myRank && !rankings.find((r) => r.user_id === user?.id) && (
+      {/* My rank */}
+      {myRank && (
         <div style={{ marginTop: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--color-ink-muted)', marginBottom: 6, letterSpacing: '0.1em' }}>
             내 순위
           </div>
-          <RankRow item={myRank} rank={myRank.rank} isMe />
+          {!rankings.find((r) => r.user_id === user?.id) && (
+            <RankRow item={myRank} rank={myRank.rank} isMe />
+          )}
+          {totalCount > 0 && (
+            <div className="text-center" style={{
+              marginTop: 8, fontSize: 12, fontWeight: 800,
+              color: 'var(--color-grass-deep)',
+            }}>
+              전국 야구 팬 중 상위 {Math.round((myRank.rank / totalCount) * 100)}%
+            </div>
+          )}
         </div>
       )}
 

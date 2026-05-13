@@ -4,7 +4,7 @@ import { Clock, ChevronDown, ChevronUp, Trophy } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import GameCard from '../components/GameCard'
-import RaffleBanner from '../components/RaffleBanner'
+
 import MatchReminder from '../components/MatchReminder'
 import TeamLogo from '../components/TeamLogo'
 
@@ -245,9 +245,6 @@ export default function Home() {
 
       {/* D-1 match reminder */}
       {user && <MatchReminder />}
-
-      {/* Raffle banner */}
-      {user && <RaffleBanner />}
 
       {/* Game list */}
       {loading ? (

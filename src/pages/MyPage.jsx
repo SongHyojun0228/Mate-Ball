@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
-import { TrendingUp, MapPin, Star, Ticket, Trophy } from 'lucide-react'
+import { TrendingUp, MapPin, Star, Trophy, Award, Share2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 import TeamLogo from '../components/TeamLogo'
 import AttendanceHistory from '../components/AttendanceHistory'
+import ShareCard from '../components/ShareCard'
+import SharePreviewModal from '../components/SharePreviewModal'
 
 const tabs = [
   { id: 'predictions', label: '예측 기록', icon: TrendingUp },
@@ -17,11 +19,13 @@ export default function MyPage() {
   const navigate = useNavigate()
   const [predictions, setPredictions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [ticketCount, setTicketCount] = useState(0)
-  const [myWins, setMyWins] = useState([])
   const [activeTab, setActiveTab] = useState('predictions')
   const [attendanceCount, setAttendanceCount] = useState(0)
   const [attendanceWinRate, setAttendanceWinRate] = useState(null)
+  const [rankingData, setRankingData] = useState(null) // { rank, totalRanked, isTop5Pct }
+  const [isRankFirst, setIsRankFirst] = useState(false)
+  const [bestGame, setBestGame] = useState(null)
+  const [showStatsPreview, setShowStatsPreview] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -34,31 +38,9 @@ export default function MyPage() {
         .order('created_at', { ascending: false })
       if (data) setPredictions(data)
 
-      const { data: activeRound } = await supabase
-        .from('raffle_rounds')
-        .select('id')
-        .eq('status', 'active')
-        .maybeSingle()
-
-      if (activeRound) {
-        const { count } = await supabase
-          .from('raffle_tickets')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('round_id', activeRound.id)
-        setTicketCount(count || 0)
-      }
-
-      const { data: wins } = await supabase
-        .from('raffle_winners')
-        .select('*, raffle_rounds(round_number, prize)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      if (wins) setMyWins(wins)
-
       const { data: attendances } = await supabase
         .from('attendance_records')
-        .select('game_id, games(home_team_id, away_team_id, home_score, away_score)')
+        .select('game_id, games(date, home_team_id, away_team_id, home_score, away_score, home_team:teams!games_home_team_id_fkey(name), away_team:teams!games_away_team_id_fkey(name))')
         .eq('user_id', user.id)
 
       if (attendances) {
@@ -66,6 +48,7 @@ export default function MyPage() {
         const fav = profile?.favorite_team_id
         if (fav && attendances.length > 0) {
           let w = 0, total = 0
+          let recentWin = null
           for (const a of attendances) {
             const g = a.games
             if (!g) continue
@@ -73,10 +56,47 @@ export default function MyPage() {
             const my = isHome ? g.home_score : g.away_score
             const op = isHome ? g.away_score : g.home_score
             total++
-            if (my > op) w++
+            if (my > op) {
+              w++
+              if (!recentWin || g.date > recentWin.date) recentWin = g
+            }
           }
           setAttendanceWinRate(total > 0 ? Math.round((w / total) * 100) : 0)
+
+          if (recentWin) {
+            const d = new Date(recentWin.date + 'T00:00:00')
+            setBestGame({
+              dateLabel: `${d.getMonth() + 1}월 ${d.getDate()}일`,
+              homeTeam: recentWin.home_team?.name || '',
+              awayTeam: recentWin.away_team?.name || '',
+              homeScore: recentWin.home_score,
+              awayScore: recentWin.away_score,
+              isWin: true,
+            })
+          }
         }
+      }
+
+      // Fetch ranking data for titles
+      const { count: totalRanked } = await supabase
+        .from('prediction_rankings')
+        .select('*', { count: 'exact', head: true })
+
+      const { data: myRanking } = await supabase
+        .from('prediction_rankings')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (myRanking && totalRanked) {
+        const { count: aboveMe } = await supabase
+          .from('prediction_rankings')
+          .select('*', { count: 'exact', head: true })
+          .gt('accuracy_pct', myRanking.accuracy_pct)
+        const rank = (aboveMe || 0) + 1
+        const pct = Math.round((rank / totalRanked) * 100)
+        setRankingData({ rank, totalRanked, topPct: pct })
+        setIsRankFirst(rank === 1)
       }
 
       setLoading(false)
@@ -134,22 +154,32 @@ export default function MyPage() {
                   {profile.rating_avg}
                 </span>
                 <span style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontWeight: 600 }}>직관 매너</span>
-                {profile.rating_avg >= 4.5 && (
-                  <span style={{
-                    background: 'var(--color-ink)', color: 'white',
-                    fontSize: 10, fontWeight: 800, padding: '2px 6px',
-                    borderRadius: 4, letterSpacing: '0.05em',
-                  }}>MVP</span>
-                )}
-                {profile.rating_avg >= 3.5 && profile.rating_avg < 4.5 && (
-                  <span style={{
-                    background: 'var(--color-stitch-red)', color: 'white',
-                    fontSize: 10, fontWeight: 800, padding: '2px 6px',
-                    borderRadius: 4, letterSpacing: '0.05em',
-                  }}>올스타</span>
-                )}
               </div>
             )}
+            {/* Titles */}
+            {(() => {
+              const titles = []
+              if (isRankFirst) titles.push({ label: '예측왕', bg: '#FFD700', color: '#1A1A2E' })
+              if (rankingData?.topPct <= 5 && judged.length >= 10) titles.push({ label: '적중 장인', bg: 'var(--color-stitch-red)', color: 'white' })
+              if (attendanceCount >= 10) titles.push({ label: '직관의 신', bg: 'var(--color-grass-mid)', color: 'white' })
+              if (profile?.rating_avg >= 4.5) titles.push({ label: '매너 MVP', bg: 'var(--color-ink)', color: 'white' })
+              else if (profile?.rating_avg >= 3.5) titles.push({ label: '매너 올스타', bg: 'var(--color-stitch-red)', color: 'white' })
+              if (titles.length === 0) return null
+              return (
+                <div className="flex flex-wrap gap-1.5" style={{ marginTop: 6 }}>
+                  {titles.map((t) => (
+                    <span key={t.label} className="flex items-center gap-1" style={{
+                      background: t.bg, color: t.color,
+                      fontSize: 10, fontWeight: 800, padding: '3px 8px',
+                      borderRadius: 999, letterSpacing: '0.03em',
+                    }}>
+                      <Award size={10} />
+                      {t.label}
+                    </span>
+                  ))}
+                </div>
+              )
+            })()}
           </div>
         </div>
       </div>
@@ -176,33 +206,45 @@ export default function MyPage() {
             </div>
           ))}
         </div>
+        {rankingData && (
+          <div className="flex items-center justify-center gap-1.5" style={{
+            marginTop: 8, fontSize: 12, fontWeight: 800,
+            color: 'var(--color-grass-deep)',
+          }}>
+            <Trophy size={13} />
+            전국 야구 팬 중 상위 {rankingData.topPct}%
+          </div>
+        )}
         <Link
           to="/ranking"
           className="no-underline flex items-center justify-center gap-1.5"
           style={{
-            marginTop: 8, fontSize: 12, fontWeight: 700,
+            marginTop: 6, fontSize: 12, fontWeight: 700,
             color: 'var(--color-stitch-red)',
           }}
         >
           <Trophy size={13} />
           전체 랭킹 보기 &gt;
         </Link>
-      </div>
-
-      {/* Draw ticket mini */}
-      <div className="ball-card flex justify-between items-center" style={{ padding: 14, marginBottom: 12 }}>
-        <div className="flex items-center gap-2.5">
-          <Ticket size={22} />
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 800 }}>치킨 추첨</div>
-            <div style={{ fontSize: 11, color: 'var(--color-ink-muted)', fontWeight: 600 }}>
-              이번 주 응모권 {ticketCount}장 · 총 당첨 {myWins.length}회
-            </div>
-          </div>
-        </div>
-        <Link to="/raffle" className="btn-ghost no-underline" style={{ padding: '6px 12px', fontSize: 12 }}>
-          보기
-        </Link>
+        <button
+          onClick={() => setShowStatsPreview(true)}
+          className="flex items-center justify-center gap-1.5"
+          style={{
+            marginTop: 8,
+            width: '100%',
+            padding: '10px 0',
+            background: 'var(--color-ink)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: 'pointer',
+          }}
+        >
+          <Share2 size={14} />
+          공유 카드 만들기
+        </button>
       </div>
 
       {/* Dugout tabs */}
@@ -303,6 +345,29 @@ export default function MyPage() {
           회원탈퇴
         </button>
       </div>
+
+      {/* Stats share preview modal */}
+      <SharePreviewModal
+        open={showStatsPreview}
+        onClose={() => setShowStatsPreview(false)}
+        cardWidth={360}
+        cardHeight={640}
+        captureScale={4}
+        filename="mateball_stats.png"
+      >
+        <ShareCard
+          profile={profile}
+          total={total}
+          correct={correct.length}
+          accuracy={accuracy}
+          attendanceCount={attendanceCount}
+          attendanceWinRate={attendanceWinRate}
+          rankingData={rankingData}
+          isRankFirst={isRankFirst}
+          judgedCount={judged.length}
+          bestGame={bestGame}
+        />
+      </SharePreviewModal>
     </div>
   )
 }

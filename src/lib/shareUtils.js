@@ -1,0 +1,49 @@
+import html2canvas from 'html2canvas'
+
+export const teamHexColors = {
+  KIA: '#e3242b',
+  LG: '#a50034',
+  SSG: '#c73a42',
+  KT: '#000000',
+  NC: '#1e3264',
+  '두산': '#13274f',
+  '한화': '#ff6600',
+  '롯데': '#2563eb',
+  '삼성': '#0066b3',
+  '키움': '#7b2d8b',
+}
+
+export async function captureToBlob(ref, canvasOptions = {}) {
+  const canvas = await html2canvas(ref, {
+    useCORS: true,
+    backgroundColor: '#f1ece1',
+    ...canvasOptions,
+  })
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob) throw new Error('blob failed')
+  return blob
+}
+
+export function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export async function shareBlob(blob, filename) {
+  const file = new File([blob], filename, { type: 'image/png' })
+  if (navigator.canShare?.({ files: [file] })) {
+    await navigator.share({ files: [file], title: '메이트볼', text: '야구는 같이 봐야 제맛' })
+    return true
+  }
+  return false
+}
+
+export async function captureAndShare(ref, filename, canvasOptions = {}) {
+  const blob = await captureToBlob(ref, canvasOptions)
+  const shared = await shareBlob(blob, filename)
+  if (!shared) downloadBlob(blob, filename)
+}

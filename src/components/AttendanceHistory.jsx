@@ -157,6 +157,9 @@ export default function AttendanceHistory() {
               favoriteTeamId={favoriteTeamId}
               onDelete={handleDelete}
               onUpdate={handleUpdate}
+              nickname={profile?.nickname}
+              seasonWins={stats.wins}
+              seasonLosses={stats.losses}
             />
           ))}
         </div>

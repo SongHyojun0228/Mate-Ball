@@ -1,14 +1,17 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Camera, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Camera, Trash2, Share2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import TeamLogo from './TeamLogo'
 import PhotoUpload from './PhotoUpload'
+import AttendanceShareCard from './AttendanceShareCard'
+import SharePreviewModal from './SharePreviewModal'
 
-export default function AttendanceCard({ record, favoriteTeamId, onDelete, onUpdate }) {
+export default function AttendanceCard({ record, favoriteTeamId, onDelete, onUpdate, nickname, seasonWins, seasonLosses }) {
   const [expanded, setExpanded] = useState(false)
   const [memo, setMemo] = useState(record.memo || '')
   const [editingMemo, setEditingMemo] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
 
   const game = record.games
   if (!game) return null
@@ -165,20 +168,50 @@ export default function AttendanceCard({ record, favoriteTeamId, onDelete, onUpd
             )}
           </div>
 
-          {/* Delete */}
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-1"
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 12, color: 'var(--color-ink-muted)',
-            }}
-          >
-            <Trash2 size={13} />
-            기록 삭제
-          </button>
+          {/* Actions row */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowPreview(true)}
+              className="flex items-center gap-1"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 12, color: 'var(--color-stitch-red)',
+                fontWeight: 700,
+              }}
+            >
+              <Share2 size={13} />
+              공유 카드 만들기
+            </button>
+            <button
+              onClick={handleDelete}
+              className="flex items-center gap-1"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 12, color: 'var(--color-ink-muted)',
+              }}
+            >
+              <Trash2 size={13} />
+              기록 삭제
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Share preview modal */}
+      <SharePreviewModal
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        cardWidth={360}
+        cardHeight={540}
+        captureScale={4}
+        filename="mateball_직관.png"
+      >
+        <AttendanceShareCard
+          game={game}
+          favoriteTeamId={favoriteTeamId}
+          nickname={nickname}
+        />
+      </SharePreviewModal>
     </div>
   )
 }

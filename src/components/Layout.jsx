@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { Home, Trophy, Ticket, MessageCircle, User, LogOut } from 'lucide-react'
+import { Home, Trophy, MessageCircle, User, LogOut } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import TeamLogo from './TeamLogo'
 
@@ -16,7 +16,7 @@ export default function Layout({ children }) {
   const tabs = [
     { id: '/', label: '오늘의 경기', icon: Home },
     { id: '/ranking', label: '랭킹', icon: Trophy },
-    { id: '/raffle', label: '추첨', icon: Ticket, auth: true },
+
     { id: '/messages', label: '쪽지함', icon: MessageCircle, auth: true },
     { id: '/mypage', label: '프로필', icon: User, auth: true },
   ]

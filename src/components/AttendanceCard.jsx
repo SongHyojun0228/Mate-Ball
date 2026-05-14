@@ -202,16 +202,34 @@ export default function AttendanceCard({ record, favoriteTeamId, onDelete, onUpd
         open={showPreview}
         onClose={() => setShowPreview(false)}
         cardWidth={360}
-        cardHeight={540}
-        captureScale={4}
+        cardHeight={640}
         filename="mateball_직관.png"
-      >
-        <AttendanceShareCard
-          game={game}
-          favoriteTeamId={favoriteTeamId}
-          nickname={nickname}
-        />
-      </SharePreviewModal>
+        renderCard={() => (
+          <AttendanceShareCard
+            game={game}
+            favoriteTeamId={favoriteTeamId}
+            nickname={nickname}
+            memo={record.memo}
+            seasonWins={seasonWins}
+            seasonLosses={seasonLosses}
+          />
+        )}
+        cardData={{
+          type: 'attendance',
+          date: game.date,
+          awayTeamId: game.away_team?.id,
+          awayTeamName: game.away_team?.name,
+          homeTeamId: game.home_team?.id,
+          homeTeamName: game.home_team?.name,
+          awayScore: game.away_score,
+          homeScore: game.home_score,
+          stadium: game.stadium,
+          favoriteTeamId,
+          memo: record.memo,
+          seasonWins,
+          seasonLosses,
+        }}
+      />
     </div>
   )
 }

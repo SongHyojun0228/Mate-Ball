@@ -1,9 +1,8 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { X, Download, Share2 } from 'lucide-react'
-import { captureToBlob, downloadBlob, shareBlob } from '../lib/shareUtils'
+import { downloadBlob, shareBlob } from '../lib/shareUtils'
 
-export default function SharePreviewModal({ open, onClose, cardWidth, cardHeight, captureScale = 4, filename, children }) {
-  const captureRef = useRef(null)
+export default function SharePreviewModal({ open, onClose, cardWidth, cardHeight, filename, renderCard, cardData }) {
   const [capturing, setCapturing] = useState(false)
   const [previewScale, setPreviewScale] = useState(0.75)
 
@@ -20,15 +19,17 @@ export default function SharePreviewModal({ open, onClose, cardWidth, cardHeight
   }, [open, cardWidth, cardHeight])
 
   const handleAction = useCallback(async (mode) => {
-    if (!captureRef.current || capturing) return
+    if (capturing || !cardData) return
     setCapturing(true)
     try {
-      const blob = await captureToBlob(captureRef.current, {
-        width: cardWidth,
-        height: cardHeight,
-        scale: captureScale,
-        backgroundColor: '#f1ece1',
+      const res = await fetch('/api/generate-card', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cardData),
       })
+      if (!res.ok) throw new Error('Card generation failed')
+      const blob = await res.blob()
+
       if (mode === 'share') {
         const shared = await shareBlob(blob, filename)
         if (!shared) downloadBlob(blob, filename)
@@ -36,11 +37,11 @@ export default function SharePreviewModal({ open, onClose, cardWidth, cardHeight
         downloadBlob(blob, filename)
       }
     } catch (err) {
-      if (err.name !== 'AbortError') console.error('Capture failed:', err)
+      console.error('Card generation failed:', err)
     } finally {
       setCapturing(false)
     }
-  }, [capturing, cardWidth, cardHeight, captureScale, filename])
+  }, [capturing, cardData, filename])
 
   if (!open) return null
 
@@ -69,7 +70,7 @@ export default function SharePreviewModal({ open, onClose, cardWidth, cardHeight
         <X size={20} />
       </button>
 
-      {/* Preview card (visible, CSS-scaled for display only) */}
+      {/* Preview card (visible, CSS-scaled) */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
@@ -85,18 +86,8 @@ export default function SharePreviewModal({ open, onClose, cardWidth, cardHeight
           transformOrigin: 'top left',
         }}>
           <div style={{ width: cardWidth, height: cardHeight, overflow: 'hidden' }}>
-            {children}
+            {renderCard()}
           </div>
-        </div>
-      </div>
-
-      {/* Off-screen capture target (NO transform — clean for html2canvas) */}
-      <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none' }}>
-        <div
-          ref={captureRef}
-          style={{ width: cardWidth, height: cardHeight, overflow: 'hidden' }}
-        >
-          {children}
         </div>
       </div>
 

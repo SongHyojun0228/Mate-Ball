@@ -352,22 +352,38 @@ export default function MyPage() {
         onClose={() => setShowStatsPreview(false)}
         cardWidth={360}
         cardHeight={640}
-        captureScale={4}
         filename="mateball_stats.png"
-      >
-        <ShareCard
-          profile={profile}
-          total={total}
-          correct={correct.length}
-          accuracy={accuracy}
-          attendanceCount={attendanceCount}
-          attendanceWinRate={attendanceWinRate}
-          rankingData={rankingData}
-          isRankFirst={isRankFirst}
-          judgedCount={judged.length}
-          bestGame={bestGame}
-        />
-      </SharePreviewModal>
+        renderCard={() => (
+          <ShareCard
+            profile={profile}
+            total={total}
+            correct={correct.length}
+            accuracy={accuracy}
+            attendanceCount={attendanceCount}
+            attendanceWinRate={attendanceWinRate}
+            rankingData={rankingData}
+            isRankFirst={isRankFirst}
+            judgedCount={judged.length}
+            bestGame={bestGame}
+          />
+        )}
+        cardData={{
+          type: 'stats',
+          nickname: profile?.nickname,
+          teamName: profile?.teams?.name,
+          teamId: profile?.favorite_team_id,
+          total,
+          correct: correct.length,
+          accuracy,
+          attendanceCount,
+          attendanceWinRate,
+          rankingData,
+          isRankFirst,
+          judgedCount: judged.length,
+          bestGame,
+          ratingAvg: profile?.rating_avg,
+        }}
+      />
     </div>
   )
 }

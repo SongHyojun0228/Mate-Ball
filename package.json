@@ -15,7 +15,7 @@
     "@capacitor/core": "^8.3.3",
     "@capacitor/ios": "^8.3.3",
     "@supabase/supabase-js": "^2.105.0",
-    "html2canvas": "^1.4.1",
+    "@vercel/og": "^0.11.1",
     "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

@@ -1,5 +1,3 @@
-import html2canvas from 'html2canvas'
-
 const teamLogoFile = {
   KIA: 'KIA', LG: 'LG', SSG: 'SSG', KT: 'KT', NC: 'NC',
   '두산': 'doosan', '한화': 'hanwha', '롯데': 'lotte', '삼성': 'samsung', '키움': 'kiwoom',
@@ -23,17 +21,6 @@ export const teamHexColors = {
   '키움': '#7b2d8b',
 }
 
-export async function captureToBlob(ref, canvasOptions = {}) {
-  const canvas = await html2canvas(ref, {
-    useCORS: true,
-    backgroundColor: '#f1ece1',
-    ...canvasOptions,
-  })
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
-  if (!blob) throw new Error('blob failed')
-  return blob
-}
-
 export function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -50,10 +37,4 @@ export async function shareBlob(blob, filename) {
     return true
   }
   return false
-}
-
-export async function captureAndShare(ref, filename, canvasOptions = {}) {
-  const blob = await captureToBlob(ref, canvasOptions)
-  const shared = await shareBlob(blob, filename)
-  if (!shared) downloadBlob(blob, filename)
 }
